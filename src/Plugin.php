@@ -34,11 +34,22 @@ final class Plugin
         Media::register();
         Rest::register();
 
-        // Only when running under WP-CLI. Registering it on a web request would
-        // put a class that talks to a third-party API in the path of every page
-        // load for no reason.
+        /**
+         * On cli_init, not inline.
+         *
+         * Registering during the mu-plugin's own load was too early: WP-CLI
+         * resolves the command it was given before WordPress has finished
+         * booting, so `wp phat import` came back as "not a registered wp
+         * command" while the same class worked perfectly over HTTP. cli_init
+         * fires once WordPress is up and is the documented place for this.
+         *
+         * Guarded so a web request never loads a class that exists only to talk
+         * to another site's API.
+         */
         if (defined('WP_CLI') && WP_CLI) {
-            WP_CLI::add_command('phat import', new Import());
+            add_action('cli_init', static function (): void {
+                WP_CLI::add_command('phat import', new Import());
+            });
         }
     }
 }
