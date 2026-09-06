@@ -70,7 +70,7 @@ final class FieldFactory
         $field = Field::make('complex', $name, $label);
 
         if (!$field instanceof Complex_Field) {
-            throw new LogicException(sprintf('Expected a complex field for "%s".', $name));
+            throw new LogicException(sprintf('Expected a complex field for "%s". Carbon returns null for a name that is not lowercase alphanumeric with dashes or underscores.', $name));
         }
 
         return $field;
@@ -94,7 +94,7 @@ final class FieldFactory
         $field = Field::make('multiselect', $name, $label);
 
         if (!$field instanceof Multiselect_Field) {
-            throw new LogicException(sprintf('Expected a multiselect field for "%s".', $name));
+            throw new LogicException(sprintf('Expected a multiselect field for "%s". Carbon returns null for a name that is not lowercase alphanumeric with dashes or underscores.', $name));
         }
 
         // Called as a statement, not chained: set_options is declared on the
@@ -130,7 +130,7 @@ final class FieldFactory
         $field = Field::make('select', $name, $label);
 
         if (!$field instanceof Select_Field) {
-            throw new LogicException(sprintf('Expected a select field for "%s".', $name));
+            throw new LogicException(sprintf('Expected a select field for "%s". Carbon returns null for a name that is not lowercase alphanumeric with dashes or underscores.', $name));
         }
 
         // Called as a statement, not chained: set_options is declared on the

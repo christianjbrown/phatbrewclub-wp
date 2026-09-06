@@ -220,7 +220,6 @@ final class Shape
     }
 
     /**
-     *
      * @return list<array<string, mixed>>
      */
     public static function mediaList(mixed $ids): array

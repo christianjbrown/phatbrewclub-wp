@@ -29,6 +29,23 @@ use WP_Post;
 final class Blocks
 {
     /**
+     * Carbon's group name for each block, and the blockType the website expects.
+     *
+     * They differ because Carbon rejects a name that is not lowercase — its
+     * factory returns null rather than throwing, so a camelCase name produces a
+     * field that is silently absent and, here, a fatal from the type guard.
+     * The website switches on the camelCase form, so the two are mapped rather
+     * than one being bent to the other.
+     */
+    private const BLOCK_TYPES = [
+        'rich_text' => 'richText',
+        'venue_cards' => 'venueCards',
+        'beer_grid' => 'beerGrid',
+        'event_list' => 'eventList',
+        'tap_list' => 'tapList',
+    ];
+
+    /**
      * @return array<string, mixed>
      */
     public static function page(WP_Post $post): array
@@ -74,17 +91,17 @@ final class Blocks
                                 Field::make('text', 'url', 'URL')->set_required(true)->set_width(60),
                             ]),
                     ])
-                    ->add_fields('richText', 'Text', [
+                    ->add_fields('rich_text', 'Text', [
                         Field::make('text', 'heading', 'Heading'),
                         Field::make('rich_text', 'body', 'Body')->set_required(true),
                     ])
-                    ->add_fields('venueCards', 'Venue cards', [
+                    ->add_fields('venue_cards', 'Venue cards', [
                         Field::make('text', 'heading', 'Heading'),
                         FieldFactory::association('venues', 'Venues', PostTypes::VENUE),
                     ])
-                    ->add_fields('beerGrid', 'Beer grid', [
+                    ->add_fields('beer_grid', 'Beer grid', [
                         Field::make('text', 'heading', 'Heading'),
-                        FieldFactory::select('filterBy', 'Show', [
+                        FieldFactory::select('filter_by', 'Show', [
                             'all' => 'Everything',
                             'core' => 'Core range only',
                             'seasonal' => 'Seasonal only',
@@ -92,13 +109,13 @@ final class Blocks
                         ])->set_default_value('all'),
                         FieldFactory::number('limit', 'How many', 12),
                     ])
-                    ->add_fields('eventList', 'Event list', [
+                    ->add_fields('event_list', 'Event list', [
                         Field::make('text', 'heading', 'Heading'),
                         FieldFactory::association('venue', 'Venue', PostTypes::VENUE, 1)
                             ->set_help_text('Leave empty for both venues.'),
                         FieldFactory::number('limit', 'How many', 4),
                     ])
-                    ->add_fields('tapList', 'Tap list', [
+                    ->add_fields('tap_list', 'Tap list', [
                         Field::make('text', 'heading', 'Heading'),
                         FieldFactory::association('venue', 'Venue', PostTypes::VENUE, 1),
                     ])
@@ -143,8 +160,10 @@ final class Blocks
      *
      * @return array<string, mixed>
      */
-    private static function block(string $type, array $block): array
+    private static function block(string $stored, array $block): array
     {
+        $type = self::BLOCK_TYPES[$stored] ?? $stored;
+
         $common = ['blockType' => $type, 'heading' => Val::str($block['heading'] ?? null)];
 
         return match ($type) {
@@ -161,7 +180,7 @@ final class Blocks
                 'venues' => Shape::expand(Shape::related($block['venues'] ?? null), 'venue'),
             ],
             'beerGrid' => $common + [
-                'filterBy' => Val::text($block['filterBy'] ?? null, 'all'),
+                'filterBy' => Val::text($block['filter_by'] ?? null, 'all'),
                 'limit' => Val::int($block['limit'] ?? null, 12),
             ],
             'eventList' => $common + [
