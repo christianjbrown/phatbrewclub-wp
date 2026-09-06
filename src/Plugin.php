@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ChristianBrown\PhatWp;
 
 use Carbon_Fields\Carbon_Fields;
+use ChristianBrown\PhatWp\Cli\Import;
+use WP_CLI;
 
 /**
  * The plugin's single entry point.
@@ -31,5 +33,12 @@ final class Plugin
         Uploads::register();
         Media::register();
         Rest::register();
+
+        // Only when running under WP-CLI. Registering it on a web request would
+        // put a class that talks to a third-party API in the path of every page
+        // load for no reason.
+        if (defined('WP_CLI') && WP_CLI) {
+            WP_CLI::add_command('phat import', new Import());
+        }
     }
 }
