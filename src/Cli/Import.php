@@ -218,7 +218,7 @@ final class Import
                 'key' => self::SOURCE_ID,
                 'value' => $collection.':'.$sourceId,
             ]],
-        ]))->posts;
+        ]))->posts ?? [];
 
         $id = $found[0] ?? null;
 
@@ -496,7 +496,7 @@ final class Import
             'posts_per_page' => -1,
             'fields' => 'ids',
             'meta_query' => [['key' => self::SOURCE_ID, 'compare' => 'EXISTS']],
-        ]))->posts;
+        ]))->posts ?? [];
 
         foreach ($found as $id) {
             if (is_int($id)) {
@@ -583,7 +583,7 @@ final class Import
             'posts_per_page' => -1,
             'fields' => 'ids',
             'post_name__in' => ['hello-world', 'sample-page', 'privacy-policy'],
-        ]))->posts;
+        ]))->posts ?? [];
 
         $removed = 0;
 

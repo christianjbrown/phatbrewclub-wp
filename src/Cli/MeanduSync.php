@@ -209,7 +209,7 @@ final class MeanduSync
             'posts_per_page' => 1,
             'fields' => 'ids',
             'meta_query' => [['key' => $key, 'value' => $value]],
-        ]))->posts;
+        ]))->posts ?? [];
 
         $id = $found[0] ?? null;
 
@@ -401,7 +401,7 @@ final class MeanduSync
             'posts_per_page' => 200,
             'orderby' => 'ID',
             'order' => 'ASC',
-        ]))->posts;
+        ]))->posts ?? [];
 
         $out = [];
 

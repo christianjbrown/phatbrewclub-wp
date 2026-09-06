@@ -237,7 +237,7 @@ final class Rest
     {
         $out = [];
 
-        foreach ($query->posts as $post) {
+        foreach ($query->posts ?? [] as $post) {
             if ($post instanceof WP_Post) {
                 $out[] = $post;
             }
