@@ -62,10 +62,21 @@ final class Val
         $out = [];
 
         foreach ($value as $row) {
-            if (is_array($row)) {
-                // @var array<string, mixed> $row
-                $out[] = $row;
+            if (!is_array($row)) {
+                continue;
             }
+
+            // Rebuilt with string keys rather than annotated as having them.
+            // Carbon rows are string-keyed in practice, but a serialised value
+            // is whatever was written, and a numeric key here would reach the
+            // API as a JSON array where the website expects an object.
+            $shaped = [];
+
+            foreach ($row as $key => $item) {
+                $shaped[(string) $key] = $item;
+            }
+
+            $out[] = $shaped;
         }
 
         return $out;
