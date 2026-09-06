@@ -33,6 +33,7 @@ final class Plugin
         Uploads::register();
         Media::register();
         Rest::register();
+        Revalidate::register();
 
         /*
          * On cli_init, not inline.

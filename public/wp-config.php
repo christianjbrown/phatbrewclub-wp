@@ -91,7 +91,20 @@ define('WP_CONTENT_URL', WP_HOME . '/wp-content');
  * them is the bucket's job, not ours — UPLOADS_URL points at its public origin
  * so an image on the site never makes a round trip through PHP.
  */
-define('UPLOADS', 'wp-content/uploads');
+/**
+ * No UPLOADS constant, deliberately.
+ *
+ * It looks like the obvious way to name the uploads directory and it is a trap
+ * here: WordPress resolves UPLOADS against ABSPATH, which is public/wp because
+ * core lives in its own directory — not against WP_CONTENT_DIR. So defining it
+ * sent every upload to public/wp/wp-content/uploads, inside core and nowhere
+ * near the Cloud Storage mount, where it lived on the container's own disk
+ * until the container went away. The media library listed 137 images and the
+ * bucket held none.
+ *
+ * Left undefined, wp_upload_dir() uses WP_CONTENT_DIR . '/uploads', which is
+ * the mount.
+ */
 
 /**
  * The rewrite itself is a filter, and filters do not exist yet at this point in
