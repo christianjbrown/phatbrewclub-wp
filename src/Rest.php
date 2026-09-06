@@ -34,7 +34,11 @@ final class Rest
             self::collection('venues', PostTypes::VENUE, [Shape::class, 'venue'], 'title', 'ASC');
             self::collection('beers', PostTypes::BEER, [Shape::class, 'beer'], 'title', 'ASC');
             self::collection('events', PostTypes::EVENT, [Shape::class, 'event'], 'phat_starts_at', 'ASC');
-            self::collection('posts', 'post', [Shape::class, 'post'], 'date', 'DESC');
+            // ID ascending, not date descending. Payload returns posts in
+            // creation order and the news index renders them in the order it
+            // is given, so sorting by date here listed the same four posts
+            // exactly backwards.
+            self::collection('posts', 'post', [Shape::class, 'post'], 'ID', 'ASC');
             self::collection('merch', PostTypes::MERCH, [Shape::class, 'merch'], 'title', 'ASC');
 
             self::route('/pages/(?P<slug>[a-z0-9-]+)', static fn (WP_REST_Request $r): WP_REST_Response => self::one(self::bySlug('page', Val::text($r['slug'])), [Blocks::class, 'page']));

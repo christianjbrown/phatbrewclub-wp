@@ -396,6 +396,17 @@ final class Import
      * @param array<string, mixed>          $doc
      * @param callable(string, mixed): void $set
      */
+    private function menuMeta(int $postId, array $doc, callable $set): void
+    {
+        $set('phat_sections', $this->sections($doc['sections'] ?? null));
+        $set('phat_meandu_id', Val::text($doc['meanduId'] ?? null));
+        $set('phat_synced_at', Val::text($doc['syncedAt'] ?? null));
+    }
+
+    /**
+     * @param array<string, mixed>          $doc
+     * @param callable(string, mixed): void $set
+     */
     private function merch(int $postId, array $doc, callable $set): void
     {
         $set('phat_price', Val::text($doc['price'] ?? null));
@@ -605,7 +616,7 @@ final class Import
             'events' => $this->event($postId, $doc, $set),
             'merch' => $this->merch($postId, $doc, $set),
             'function-packages' => $this->functionPackage($postId, $doc, $set),
-            'menus' => $set('phat_sections', $this->sections($doc['sections'] ?? null)),
+            'menus' => self::menuMeta($postId, $doc, $set),
             'tap-lists' => self::tapListMeta($postId, $doc),
             'posts' => $this->thumbnail($postId, $doc['heroImage'] ?? null),
             'pages' => $set('phat_layout', $this->layout($doc['layout'] ?? null)),

@@ -204,6 +204,7 @@ final class Fields
             ->add_fields([
                 FieldFactory::association('phat_venue', 'Venue', PostTypes::VENUE, 1),
                 Field::make('text', 'phat_meandu_id', 'me&u id'),
+                Field::make('text', 'phat_synced_at', 'Last synced'),
                 FieldFactory::complex('phat_sections', 'Sections')
                     ->add_fields([
                         Field::make('text', 'name', 'Section'),

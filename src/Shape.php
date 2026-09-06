@@ -272,7 +272,9 @@ final class Shape
             'id' => $id,
             'name' => $post->post_title,
             'venue' => $venueIds[0] ?? null,
-            'syncedAt' => null,
+            // The menu page prints "Synced from me&u" and this timestamp, so a
+            // hardcoded null was a line of visible text the other site had.
+            'syncedAt' => Val::str(carbon_get_post_meta($id, 'phat_synced_at')),
             'sections' => $sections,
         ];
     }
