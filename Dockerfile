@@ -41,6 +41,9 @@ FROM base AS runtime
 WORKDIR /var/www/html
 
 COPY --from=vendor /build/vendor /var/www/html/vendor
+# composer.json sets bin-dir to bin, matching the rest of the estate, so the
+# WP-CLI binary is bin/wp rather than the vendor/bin/wp you would expect.
+COPY --from=vendor /build/bin /var/www/html/bin
 COPY --from=vendor /build/public/wp /var/www/html/public/wp
 COPY public/index.php public/wp-config.php /var/www/html/public/
 COPY public/wp-content /var/www/html/public/wp-content
@@ -49,7 +52,7 @@ COPY docker/wp-cli.yml /var/www/wp-cli.yml
 
 # Fails the build if a mirror or a dependency has altered a core file. Cheap,
 # and the alternative is finding out from the site.
-RUN php vendor/bin/wp core verify-checksums --path=public/wp --allow-root
+RUN php bin/wp core verify-checksums --path=public/wp --allow-root
 
 # The uploads directory is a Cloud Storage bucket mounted at runtime. It exists
 # here only so the path resolves when nothing is mounted, which is what happens
