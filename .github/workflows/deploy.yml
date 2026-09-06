@@ -1,0 +1,87 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '.gitignore']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# Queue rather than cancel. A half-rolled WordPress deploy is worse than a slow
+# one, and the database step below must never be interrupted.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT: phatbrewclub-2026
+  REGION: asia-southeast1
+  REGISTRY: asia-southeast1-docker.pkg.dev/phatbrewclub-2026/phatbrewclub
+
+jobs:
+  deploy:
+    name: build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+
+      # composer.lock is the version pin for WordPress core and every plugin, so
+      # a lock that disagrees with composer.json means the image is not what the
+      # repository says it is.
+      - name: Validate the lock file
+        run: |
+          docker run --rm -v "$PWD:/app" -w /app composer:2 composer validate --strict --no-check-publish
+
+      - name: Build and push
+        run: |
+          docker build -t "$REGISTRY/wp:$GITHUB_SHA" -t "$REGISTRY/wp:latest" .
+          docker push "$REGISTRY/wp:$GITHUB_SHA"
+          docker push "$REGISTRY/wp:latest"
+
+      # Schema before service, the same order the Payload repo uses: a container
+      # that 500s on a missing column is worse than a deploy that stopped.
+      - name: Update the database
+        run: |
+          gcloud run jobs update wp-update-db \
+            --image "$REGISTRY/wp:$GITHUB_SHA" --region "$REGION" --project "$PROJECT" --quiet
+          gcloud run jobs execute wp-update-db --region "$REGION" --project "$PROJECT" --wait
+
+      - name: Point the other jobs at the same build
+        run: |
+          for JOB in wp-install wp-import; do
+            gcloud run jobs update "$JOB" \
+              --image "$REGISTRY/wp:$GITHUB_SHA" --region "$REGION" --project "$PROJECT" --quiet
+          done
+
+      - name: Deploy
+        run: |
+          gcloud run deploy wp \
+            --image "$REGISTRY/wp:$GITHUB_SHA" --region "$REGION" --project "$PROJECT" --quiet
+
+      - name: Smoke check
+        run: |
+          URL=$(gcloud run services describe wp --region "$REGION" --project "$PROJECT" --format='value(status.url)')
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$URL/wp/wp-login.php")
+          echo "$URL/wp/wp-login.php -> $CODE"
+          case "$CODE" in 2*|3*) ;; *) exit 1 ;; esac
+
+      # Informational only. A first certificate takes 15-30 minutes, so gating
+      # the deploy on the custom domain would fail every initial rollout.
+      - name: Custom domain
+        continue-on-error: true
+        run: |
+          curl -s -o /dev/null -w 'cms.pbc-wp -> %{http_code}\n' --max-time 20 https://cms.pbc-wp.christianbrown.uk/ || true
