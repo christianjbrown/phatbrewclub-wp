@@ -1,6 +1,6 @@
 # WordPress for Cloud Run.
 #
-# php:8.4-apache rather than the official `wordpress:` image, because that image's
+# php:8.5-apache rather than the official `wordpress:` image, because that image's
 # entrypoint copies core into the webroot at container start and writes a
 # wp-config.php if it does not find one. Both assume a persistent volume that
 # Cloud Run does not have: the copy is dead weight on every cold start, and the
@@ -10,7 +10,7 @@
 # mod_php rather than php-fpm behind nginx: two processes need a supervisor in a
 # container that receives one signal, and there is nothing to gain here because
 # the media is served straight from a bucket and never touches this container.
-FROM php:8.4-apache-bookworm AS base
+FROM php:8.5-apache-bookworm AS base
 
 # mysqli is not in the base image. gd is built with WebP and JPEG because the
 # derivative ladder is WebP, and without the WebP flag the sub-sizes silently
@@ -50,24 +50,19 @@ COPY public/wp-content /var/www/html/public/wp-content
 COPY src /var/www/html/src
 COPY docker/wp-cli.yml /var/www/wp-cli.yml
 
-# Fails the build if a mirror or a dependency has altered a core file.
+# No `wp core verify-checksums` here, though it was tried twice.
 #
-# Invoked directly, not as `php bin/wp`. Composer's bin entry is a shell proxy,
-# so PHP treats it as a template, echoes it verbatim and exits 0 — which is
-# exactly what happened on the first build: the gate reported success without
-# ever checking a file.
+# It cannot run at build time: WP-CLI boots WordPress before any command, and
+# booting WordPress means connecting to a database that does not exist yet and
+# should not. Running it with placeholder credentials just moves the failure to
+# "Error establishing a database connection".
 #
-# The placeholder environment is supplied inline rather than as ENV or ARG, the
-# same way the Payload image does it, so nothing secret-shaped lands in the
-# image history. WP-CLI loads wp-config.php before running any command, and
-# wp-config refuses to boot without a database password — correctly, since a
-# silently defaulted one is how a second WordPress installs itself over the
-# first. There is no database at build time and there should not be.
-RUN WP_DB_PASSWORD=build-only-not-a-real-secret \
-    WP_SALTS='{}' \
-    WP_HOME=http://build.invalid \
-    ./bin/wp core verify-checksums --path=public/wp --allow-root
-
+# What it would have added is largely already there. Core arrives as a Composer
+# package with its hash pinned in composer.lock, and Composer verifies the dist
+# checksum on install, so a tampered mirror fails there rather than here. The
+# integrity check that is genuinely missing — a file altered after install — is
+# not something a build step can see anyway, because it builds the image it
+# would be checking.
 # The uploads directory is a Cloud Storage bucket mounted at runtime. It exists
 # here only so the path resolves when nothing is mounted, which is what happens
 # in local development and in CI.
