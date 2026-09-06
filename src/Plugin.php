@@ -25,8 +25,11 @@ final class Plugin
 
         add_action('init', [PostTypes::class, 'register'], 5);
         add_action('carbon_fields_register_fields', [Fields::class, 'register']);
+        add_action('carbon_fields_register_fields', [Blocks::class, 'register']);
+        add_action('carbon_fields_register_fields', [Settings::class, 'register']);
 
         Uploads::register();
         Media::register();
+        Rest::register();
     }
 }

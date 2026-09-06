@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ChristianBrown\PhatWp;
 
+use Carbon_Fields\Container;
+use Carbon_Fields\Container\Theme_Options_Container;
 use Carbon_Fields\Field;
 use Carbon_Fields\Field\Association_Field;
 use Carbon_Fields\Field\Complex_Field;
@@ -137,5 +139,23 @@ final class FieldFactory
         $field->set_options($options);
 
         return $field;
+    }
+
+    /**
+     * The theme options page, narrowed the same way the fields are.
+     *
+     * Container::make is declared as returning the base Container, while the
+     * only method worth calling on this one — set_page_menu_position — lives on
+     * the subclass.
+     */
+    public static function themeOptions(string $title): Theme_Options_Container
+    {
+        $container = Container::make('theme_options', $title);
+
+        if (!$container instanceof Theme_Options_Container) {
+            throw new LogicException(sprintf('Expected a theme options container for "%s".', $title));
+        }
+
+        return $container;
     }
 }

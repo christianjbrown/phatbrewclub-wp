@@ -11,3 +11,8 @@ parameters:
     # here, where every WordPress global would need a stub.
     scanDirectories:
         - public/wp
+    # Carbon Fields' carbon_get_post_meta and friends are global functions loaded
+    # through Composer's `files` autoload, so PSR-4 discovery never sees them.
+    scanFiles:
+        - vendor/htmlburger/carbon-fields/config.php
+        - vendor/htmlburger/carbon-fields/core/functions.php
