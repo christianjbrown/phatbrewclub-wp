@@ -10,6 +10,8 @@ use WP_CLI;
 use WP_Error;
 use WP_Query;
 
+use const PHP_URL_PATH;
+
 /**
  * Copy the content across from the live Payload site.
  *
@@ -243,10 +245,18 @@ final class Import
         include_once ABSPATH.'wp-admin/includes/image.php';
 
         $alt = Val::text($value['alt'] ?? null);
-        $sideloaded = media_sideload_image($url, 0, $alt, 'id');
+
+        /**
+         * media_sideload_image refuses anything that is not an image, which
+         * silently lost the functions pack — a PDF the venue page offers for
+         * download. Non-images take the generic path instead.
+         */
+        $sideloaded = str_ends_with(mb_strtolower($url), '.pdf')
+        ? self::sideloadFile($url)
+        : media_sideload_image($url, 0, $alt, 'id');
 
         if ($sideloaded instanceof WP_Error) {
-            WP_CLI::warning(sprintf('image %s: %s', $url, $sideloaded->get_error_message()));
+            WP_CLI::warning(sprintf('media %s: %s', $url, $sideloaded->get_error_message()));
 
             return '';
         }
@@ -574,6 +584,34 @@ final class Import
         }
 
         carbon_set_theme_option('phat_main_nav', $nav);
+    }
+
+    /**
+     * Download a non-image and attach it to the media library.
+     */
+    private static function sideloadFile(string $url): int|WP_Error
+    {
+        $tmp = download_url($url);
+
+        if ($tmp instanceof WP_Error) {
+            return $tmp;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+        $file = [
+            'name' => basename(is_string($path) ? $path : 'file.pdf'),
+            'tmp_name' => $tmp,
+        ];
+
+        $id = media_handle_sideload($file, 0);
+
+        if ($id instanceof WP_Error && file_exists($tmp)) {
+            wp_delete_file($tmp);
+
+            return $id;
+        }
+
+        return Val::int($id);
     }
 
     /**
