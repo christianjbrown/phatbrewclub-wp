@@ -21,7 +21,15 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         libjpeg62-turbo-dev libpng-dev libwebp-dev libfreetype6-dev libzip-dev unzip; \
     docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype; \
-    docker-php-ext-install -j"$(nproc)" mysqli gd zip exif opcache; \
+    # No opcache in this list, though every other PHP image wants it there.
+    # PHP 8.5 compiles it in statically — `php -m` lists Zend OPcache under
+    # Zend Modules — so docker-php-ext-install builds nothing and dies on
+    # `cp: cannot stat 'modules/*'`, which names neither opcache nor the cause.
+    # It is loaded already; zz-opcache.ini configures it.
+    #
+    # Serial rather than -j: parallel installs race on the shared module
+    # directory and fail the same opaque way.
+    docker-php-ext-install mysqli gd zip exif; \
     a2enmod rewrite headers; \
     rm -rf /var/lib/apt/lists/*
 
