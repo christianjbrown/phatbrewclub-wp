@@ -37,6 +37,24 @@ use const PHP_URL_PATH;
 final class Import
 {
     private const SOURCE_ID = '_phat_source_id';
+
+    /**
+     * Every type this command writes, named explicitly.
+     *
+     * @var list<string>
+     */
+    private const TYPES = [
+        PostTypes::VENUE,
+        PostTypes::BEER,
+        PostTypes::EVENT,
+        PostTypes::MERCH,
+        PostTypes::FUNCTION_PACKAGE,
+        PostTypes::MENU,
+        PostTypes::TAP_LIST,
+        'post',
+        'page',
+        'attachment',
+    ];
     private string $api = '';
 
     /**
@@ -57,6 +75,10 @@ final class Import
     {
         $this->api = mb_rtrim($options['from'] ?? 'https://cms.pbc.christianbrown.uk', '/').'/api';
         $dryRun = isset($options['dry-run']);
+
+        if (isset($options['fresh']) && !$dryRun) {
+            self::purge();
+        }
 
         WP_CLI::log(sprintf('Reading %s%s', $this->api, $dryRun ? ' (dry run)' : ''));
 
@@ -176,8 +198,13 @@ final class Import
 
     private static function findBySource(string $collection, string $sourceId): ?int
     {
+        // Not 'any'. WP_Query's "any" silently excludes every post type
+        // registered with exclude_from_search, which is what public => false
+        // gives you — so this found nothing, every run created a fresh copy of
+        // all 58 documents, and four runs produced four sites' worth of
+        // content on one site.
         $found = (new WP_Query([
-            'post_type' => 'any',
+            'post_type' => self::TYPES,
             'post_status' => 'any',
             'posts_per_page' => 1,
             'fields' => 'ids',
@@ -423,6 +450,33 @@ final class Import
         }
 
         return $html;
+    }
+
+    /**
+     * Delete everything this command has previously written.
+     *
+     * Scoped to posts carrying _phat_source_id, so anything authored by hand in
+     * wp-admin is left alone. Forced rather than trashed: a trashed post keeps
+     * its slug reserved, and the re-import would then get every slug suffixed
+     * with -2.
+     */
+    private static function purge(): void
+    {
+        $found = (new WP_Query([
+            'post_type' => self::TYPES,
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'meta_query' => [['key' => self::SOURCE_ID, 'compare' => 'EXISTS']],
+        ]))->posts;
+
+        foreach ($found as $id) {
+            if (is_int($id)) {
+                wp_delete_post($id, true);
+            }
+        }
+
+        WP_CLI::log(sprintf('  purged %d previously imported items', count($found)));
     }
 
     /**
