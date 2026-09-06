@@ -262,6 +262,9 @@ final class Fields
             ->where('post_type', '=', PostTypes::TAP_LIST)
             ->add_fields([
                 FieldFactory::association('phat_venue', 'Venue', PostTypes::VENUE, 1)->set_required(true),
+                Field::make('text', 'phat_source', 'Source')
+                    ->set_help_text('"meandu" when synced, "manual" when edited here.'),
+                Field::make('text', 'phat_synced_at', 'Last synced'),
                 FieldFactory::complex('phat_taps', 'Taps')
                     ->set_layout('tabbed-vertical')
                     ->add_fields([

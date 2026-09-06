@@ -126,10 +126,16 @@ final class Rest
             return [];
         }
 
+        // Ascending ID, which is import order, which is the order Payload
+        // returned them in. Left to WP_Query's default the two sites listed a
+        // venue's menus the other way round — the same content, read in a
+        // different order, which looks like a content difference.
         $all = self::posts(new WP_Query([
             'post_type' => $postType,
             'post_status' => 'publish',
             'posts_per_page' => self::MAX,
+            'orderby' => 'ID',
+            'order' => 'ASC',
         ]));
 
         $out = [];

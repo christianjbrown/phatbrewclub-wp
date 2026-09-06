@@ -405,6 +405,17 @@ final class Import
         $set('phat_images', $this->images($doc['images'] ?? null));
     }
 
+    /**
+     * An ISO date as the UTC MySQL datetime wp_insert_post wants.
+     */
+    private static function mysqlDate(mixed $value): string
+    {
+        $raw = Val::str($value);
+        $time = null === $raw ? false : strtotime($raw);
+
+        return false === $time ? '' : gmdate('Y-m-d H:i:s', $time);
+    }
+
     private function nodes(mixed $children): string
     {
         $html = '';
@@ -595,7 +606,7 @@ final class Import
             'merch' => $this->merch($postId, $doc, $set),
             'function-packages' => $this->functionPackage($postId, $doc, $set),
             'menus' => $set('phat_sections', $this->sections($doc['sections'] ?? null)),
-            'tap-lists' => null,
+            'tap-lists' => self::tapListMeta($postId, $doc),
             'posts' => $this->thumbnail($postId, $doc['heroImage'] ?? null),
             'pages' => $set('phat_layout', $this->layout($doc['layout'] ?? null)),
             default => null,
@@ -732,6 +743,15 @@ final class Import
         carbon_set_post_meta($postId, 'phat_taps', $taps);
     }
 
+    /**
+     * @param array<string, mixed> $doc
+     */
+    private static function tapListMeta(int $postId, array $doc): void
+    {
+        carbon_set_post_meta($postId, 'phat_source', Val::text($doc['source'] ?? null, 'manual'));
+        carbon_set_post_meta($postId, 'phat_synced_at', Val::text($doc['syncedAt'] ?? null));
+    }
+
     private function thumbnail(int $postId, mixed $value): void
     {
         $id = $this->image($value);
@@ -762,6 +782,10 @@ final class Import
             'post_name' => Val::text($doc['slug'] ?? null),
             'post_content' => 'post' === $postType ? $this->lexical($doc['body'] ?? null) : '',
             'post_excerpt' => 'post' === $postType ? Val::text($doc['excerpt'] ?? null) : '',
+            // Otherwise WordPress stamps the import time, so the news index
+            // shows the day it was copied rather than the day it was published
+            // — and orders the posts by it.
+            'post_date_gmt' => self::mysqlDate($doc['publishedAt'] ?? null),
         ], true);
 
         if ($inserted instanceof WP_Error) {

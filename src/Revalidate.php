@@ -50,7 +50,7 @@ final class Revalidate
     ];
 
     /**
-     * @var list<string> Collected during the request, sent once on shutdown.
+     * @var list<string> collected during the request, sent once on shutdown
      */
     private static array $pending = [];
 

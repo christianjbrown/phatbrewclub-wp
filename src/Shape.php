@@ -381,8 +381,12 @@ final class Shape
             'title' => $post->post_title,
             'venue' => $venues[0] ?? null,
             'taps' => $taps,
-            'source' => 'manual',
-            'syncedAt' => null,
+            // Carried across from the sync rather than hardcoded: the venue
+            // page prints "Synced from me&u" and a timestamp under the tap
+            // list, and with these fixed the two sites disagreed on a line of
+            // visible text.
+            'source' => Val::text(carbon_get_post_meta($id, 'phat_source'), 'manual'),
+            'syncedAt' => Val::str(carbon_get_post_meta($id, 'phat_synced_at')),
         ];
     }
 
