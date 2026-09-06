@@ -80,6 +80,10 @@ final class Import
             self::purge();
         }
 
+        if (!$dryRun) {
+            self::removeSampleContent();
+        }
+
         WP_CLI::log(sprintf('Reading %s%s', $this->api, $dryRun ? ' (dry run)' : ''));
 
         // Order matters only in that venues must exist before anything that
@@ -536,6 +540,41 @@ final class Import
             'tap-lists' => $this->tapList($postId, $doc),
             default => null,
         };
+    }
+
+    /**
+     * Remove the sample content WordPress installs with.
+     *
+     * "Hello world!" and "Sample Page" are published the moment core is
+     * installed, and this site's news index lists every post — so the brewery's
+     * four became five, and the comparison showed a difference that was
+     * WordPress's own furniture rather than anything about the content.
+     *
+     * Matched on slug and only when the post carries no _phat_source_id, so a
+     * real post that happens to be called hello-world is never touched.
+     */
+    private static function removeSampleContent(): void
+    {
+        $found = (new WP_Query([
+            'post_type' => ['post', 'page'],
+            'post_status' => 'any',
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'post_name__in' => ['hello-world', 'sample-page', 'privacy-policy'],
+        ]))->posts;
+
+        $removed = 0;
+
+        foreach ($found as $id) {
+            if (is_int($id) && '' === get_post_meta($id, self::SOURCE_ID, true)) {
+                wp_delete_post($id, true);
+                ++$removed;
+            }
+        }
+
+        if ($removed > 0) {
+            WP_CLI::log(sprintf('  removed %d WordPress sample posts', $removed));
+        }
     }
 
     /**
