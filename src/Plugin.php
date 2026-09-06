@@ -34,7 +34,7 @@ final class Plugin
         Media::register();
         Rest::register();
 
-        /**
+        /*
          * On cli_init, not inline.
          *
          * Registering during the mu-plugin's own load was too early: WP-CLI

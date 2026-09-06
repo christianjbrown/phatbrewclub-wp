@@ -38,12 +38,12 @@ final class Import
     private string $api = '';
 
     /**
-     * @var array<string, int> Payload id => WordPress post id, filled in pass one.
+     * @var array<string, int> payload id => WordPress post id, filled in pass one
      */
     private array $map = [];
 
     /**
-     * @var array<string, int> Payload media id => attachment id.
+     * @var array<string, int> payload media id => attachment id
      */
     private array $media = [];
 
@@ -73,8 +73,8 @@ final class Import
         ];
 
         /**
- * @var list<array{string, list<array<string, mixed>>}> $fetched
-*/
+         * @var list<array{string, list<array<string, mixed>>}> $fetched
+         */
         $fetched = [];
 
         foreach ($plan as [$collection, $postType, $titleField]) {

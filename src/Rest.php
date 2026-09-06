@@ -121,7 +121,10 @@ final class Rest
             'posts_per_page' => self::MAX,
             'meta_query' => [[
                 'key' => '_phat_venue',
-                'value' => sprintf('post:%s:%d', 'any', $venue),
+                // The post type has to be the real one. An earlier version used the
+                // literal "any" here, which matched nothing, so tap lists and
+                // menus came back empty on a site whose data was perfectly fine.
+                'value' => sprintf('post:%s:%d', PostTypes::VENUE, $venue),
                 'compare' => 'LIKE',
             ]],
         ]));
