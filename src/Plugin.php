@@ -6,6 +6,7 @@ namespace ChristianBrown\PhatWp;
 
 use Carbon_Fields\Carbon_Fields;
 use ChristianBrown\PhatWp\Cli\Import;
+use ChristianBrown\PhatWp\Cli\MeanduSync;
 use WP_CLI;
 
 /**
@@ -50,6 +51,7 @@ final class Plugin
         if (defined('WP_CLI') && WP_CLI) {
             add_action('cli_init', static function (): void {
                 WP_CLI::add_command('phat import', new Import());
+                WP_CLI::add_command('phat meandu-sync', new MeanduSync());
             });
         }
     }
