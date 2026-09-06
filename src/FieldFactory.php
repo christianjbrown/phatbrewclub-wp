@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ChristianBrown\PhatWp;
 
 use Carbon_Fields\Field;
+use Carbon_Fields\Field\Association_Field;
 use Carbon_Fields\Field\Complex_Field;
 use Carbon_Fields\Field\Field as CarbonField;
 use Carbon_Fields\Field\Multiselect_Field;
@@ -28,6 +29,40 @@ use LogicException;
  */
 final class FieldFactory
 {
+    /**
+     * A link to one or more posts of a single type.
+     *
+     * Carbon's association field can point at posts, terms, users and comments
+     * at once; every relationship in this model points at exactly one post
+     * type, so the type list is built here rather than spelled out at each call
+     * site.
+     *
+     * @param string   $name     the meta key
+     * @param string   $label    the label shown in the admin
+     * @param string   $postType the post type it may link to
+     * @param null|int $max      how many may be chosen, null for no limit
+     */
+    public static function association(
+        string $name,
+        string $label,
+        string $postType,
+        ?int $max = null,
+    ): Association_Field {
+        $field = Field::make('association', $name, $label);
+
+        if (!$field instanceof Association_Field) {
+            throw new LogicException(sprintf('Expected an association field for "%s".', $name));
+        }
+
+        $field->set_types([['type' => 'post', 'post_type' => $postType]]);
+
+        if (null !== $max) {
+            $field->set_max($max);
+        }
+
+        return $field;
+    }
+
     public static function complex(string $name, string $label): Complex_Field
     {
         $field = Field::make('complex', $name, $label);

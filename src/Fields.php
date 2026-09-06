@@ -23,6 +23,13 @@ use Carbon_Fields\Field\Field as CarbonField;
  */
 final class Fields
 {
+    private const ALLERGENS = ['Lactose', 'Gluten', 'Wheat', 'Nuts', 'Soy'];
+    private const AMENITIES = [
+        'Beer garden', 'Kids zone', 'Arcade games', 'Dog friendly', 'Ocean views',
+        'Live music', 'Wheelchair accessible', 'Parking', 'Function spaces', 'Fresh seafood',
+        'Family friendly', 'Sports screens', 'Outdoor seating',
+    ];
+
     /**
      * Fixed lists, kept as select options rather than taxonomies.
      *
@@ -31,10 +38,14 @@ final class Fields
      * eighth amenity that renders as a blank space, and would add a join to
      * every query to gain a UI Payload does not have.
      */
-    private const AMENITIES = [
-        'Beer garden', 'Kids zone', 'Arcade games', 'Dog friendly', 'Ocean views',
-        'Live music', 'Wheelchair accessible', 'Parking', 'Function spaces', 'Fresh seafood',
-        'Family friendly', 'Sports screens', 'Outdoor seating',
+    /**
+     * Payload's four beer categories, and the labels the site groups them under.
+     */
+    private const BEER_CATEGORIES = [
+        'core' => 'Core range',
+        'seasonal' => 'Seasonal',
+        'limited' => 'Limited release',
+        'collab' => 'Collaboration',
     ];
 
     /**
@@ -49,10 +60,183 @@ final class Fields
         'sat' => 'Saturday',
         'sun' => 'Sunday',
     ];
+    private const EVENT_CATEGORIES = [
+        'Quiz' => 'Quiz',
+        'Live music' => 'Live music',
+        'Food special' => 'Food special',
+        'Beer release' => 'Beer release',
+        'Sport' => 'Sport',
+        'Competition' => 'Competition',
+        'Other' => 'Other',
+    ];
+    private const RECURRENCE = [
+        'once' => 'One-off',
+        'weekly' => 'Every week',
+        'fortnightly' => 'Every fortnight',
+        'monthly' => 'Every month',
+    ];
+    private const SEATING = [
+        'standing' => 'Standing',
+        'seated' => 'Seated',
+        'mixed' => 'Mixed',
+    ];
 
     public static function register(): void
     {
         self::venue();
+        self::beer();
+        self::event();
+        self::merch();
+        self::functionPackage();
+        self::tapList();
+        self::menu();
+    }
+
+    private static function beer(): void
+    {
+        Container::make('post_meta', 'Beer')
+            ->where('post_type', '=', PostTypes::BEER)
+            ->add_tab('The beer', [
+                Field::make('text', 'phat_style', 'Style')->set_required(true)->set_width(50),
+                // Text with a number input rather than a numeric field: Carbon
+                // has no decimal type, and ABV is written as 4.2 not 4.
+                Field::make('text', 'phat_abv', 'ABV %')
+                    ->set_required(true)
+                    ->set_attribute('type', 'number')
+                    ->set_attribute('step', '0.1')
+                    ->set_width(25),
+                FieldFactory::number('phat_ibu', 'IBU')->set_width(25),
+                FieldFactory::select('phat_category', 'Category', self::BEER_CATEGORIES)
+                    ->set_default_value('core'),
+                Field::make('textarea', 'phat_description', 'Description'),
+                Field::make('rich_text', 'phat_tasting_notes', 'Tasting notes'),
+                FieldFactory::multiselect(
+                    'phat_allergens',
+                    'Allergens',
+                    array_combine(self::ALLERGENS, self::ALLERGENS),
+                ),
+            ])
+            ->add_tab('Pictures', [
+                Field::make('image', 'phat_can_artwork', 'Can artwork'),
+                Field::make('media_gallery', 'phat_gallery', 'Gallery'),
+                Field::make('text', 'phat_video_id', 'YouTube video id')
+                    ->set_help_text('Just the id, not the whole URL.'),
+            ])
+            ->add_tab('Buying it', [
+                Field::make('text', 'phat_price', 'Price (AUD)')
+                    ->set_attribute('type', 'number')
+                    ->set_attribute('step', '0.01')
+                    ->set_width(50),
+                Field::make('text', 'phat_pack_size', 'Pack size')
+                    ->set_attribute('placeholder', '16 x 375ml cans')
+                    ->set_width(50),
+                Field::make('text', 'phat_shop_url', 'Shop URL')->set_width(50),
+                Field::make('text', 'phat_untappd_url', 'Untappd URL')->set_width(50),
+                FieldFactory::association('phat_available_at', 'Pouring at', PostTypes::VENUE),
+            ])
+            ->add_tab('Who made it', [
+                FieldFactory::complex('phat_ingredients', 'Local producers')
+                    ->add_fields([
+                        Field::make('text', 'producer', 'Producer')->set_required(true)->set_width(50),
+                        Field::make('text', 'contribution', 'What they supplied')->set_width(50),
+                    ]),
+            ])
+            ->add_tab('Search and social', self::seo());
+    }
+
+    private static function event(): void
+    {
+        Container::make('post_meta', 'Event')
+            ->where('post_type', '=', PostTypes::EVENT)
+            ->add_tab('When and where', [
+                Field::make('date_time', 'phat_starts_at', 'Starts')->set_required(true)->set_width(50),
+                Field::make('date_time', 'phat_ends_at', 'Ends')->set_width(50),
+                FieldFactory::select('phat_recurrence', 'Repeats', self::RECURRENCE)
+                    ->set_default_value('once')
+                    ->set_width(50),
+                // Only meaningful for a repeating event, and Carbon shows it
+                // regardless — the read API ignores it when recurrence is once.
+                Field::make('date', 'phat_repeats_until', 'Repeats until')->set_width(50),
+                FieldFactory::association('phat_venues', 'Venues', PostTypes::VENUE),
+                FieldFactory::select('phat_category', 'Category', self::EVENT_CATEGORIES),
+            ])
+            ->add_tab('Details', [
+                Field::make('image', 'phat_hero_image', 'Poster'),
+                Field::make('rich_text', 'phat_body', 'About this event'),
+            ])
+            ->add_tab('Cost', [
+                Field::make('checkbox', 'phat_is_free', 'Free entry')->set_default_value(true),
+                Field::make('text', 'phat_price', 'Admission')
+                    ->set_help_text('Only when there is a door charge.'),
+                // Separate from admission on purpose: "$25 for Mega Burger
+                // Monday" is the price of a burger, not the price of getting in,
+                // and labelling it "entry" told people the wrong thing.
+                Field::make('text', 'phat_price_note', 'What it costs')
+                    ->set_help_text('For a food or drink special — what the money buys.'),
+                Field::make('text', 'phat_booking_url', 'Booking URL'),
+            ])
+            ->add_tab('Search and social', self::seo());
+    }
+
+    private static function functionPackage(): void
+    {
+        Container::make('post_meta', 'Function space')
+            ->where('post_type', '=', PostTypes::FUNCTION_PACKAGE)
+            ->add_fields([
+                FieldFactory::association('phat_venue', 'Venue', PostTypes::VENUE, 1),
+                FieldFactory::number('phat_capacity', 'Capacity')->set_width(33),
+                FieldFactory::select('phat_seating', 'Seating', self::SEATING)->set_width(33),
+                Field::make('text', 'phat_price_guide', 'Price guide')
+                    ->set_attribute('placeholder', 'From $45 pp')
+                    ->set_width(34),
+                Field::make('image', 'phat_image', 'Photograph'),
+                Field::make('rich_text', 'phat_description', 'Description'),
+                FieldFactory::complex('phat_inclusions', 'What is included')
+                    ->add_fields([Field::make('text', 'item', 'Item')->set_required(true)]),
+                Field::make('file', 'phat_brochure', 'Brochure (PDF)'),
+            ]);
+    }
+
+    private static function menu(): void
+    {
+        Container::make('post_meta', 'Menu')
+            ->where('post_type', '=', PostTypes::MENU)
+            ->add_fields([
+                FieldFactory::association('phat_venue', 'Venue', PostTypes::VENUE, 1),
+                Field::make('text', 'phat_meandu_id', 'me&u id'),
+                FieldFactory::complex('phat_sections', 'Sections')
+                    ->add_fields([
+                        Field::make('text', 'name', 'Section'),
+                        FieldFactory::complex('items', 'Items')
+                            ->add_fields([
+                                Field::make('text', 'name', 'Name')->set_width(50),
+                                Field::make('text', 'price', 'Price')->set_width(25),
+                                Field::make('text', 'dietary', 'Dietary codes')->set_width(25),
+                                Field::make('textarea', 'description', 'Description'),
+                                Field::make('image', 'image', 'Photograph'),
+                                Field::make('text', 'image_credit', 'Photo credit'),
+                            ]),
+                    ])
+                    ->set_help_text('Synced from me&u. Edits here are overwritten on the next sync.'),
+            ]);
+    }
+
+    private static function merch(): void
+    {
+        Container::make('post_meta', 'Merch')
+            ->where('post_type', '=', PostTypes::MERCH)
+            ->add_fields([
+                Field::make('text', 'phat_price', 'Price (AUD)')
+                    ->set_attribute('type', 'number')
+                    ->set_attribute('step', '0.01')
+                    ->set_width(50),
+                Field::make('checkbox', 'phat_sold_out', 'Sold out')->set_width(50),
+                Field::make('text', 'phat_shop_url', 'Shop URL')
+                    ->set_help_text('Leave blank for something only sold in the venues.'),
+                Field::make('textarea', 'phat_description', 'Description'),
+                Field::make('media_gallery', 'phat_images', 'Images')
+                    ->set_help_text('The first one is used on the shop grid.'),
+            ]);
     }
 
     /**
@@ -70,6 +254,28 @@ final class Fields
             FieldFactory::limitedText('textarea', 'phat_seo_description', 'Description', 165),
             Field::make('image', 'phat_seo_image', 'Share image'),
         ];
+    }
+
+    private static function tapList(): void
+    {
+        Container::make('post_meta', 'Tap list')
+            ->where('post_type', '=', PostTypes::TAP_LIST)
+            ->add_fields([
+                FieldFactory::association('phat_venue', 'Venue', PostTypes::VENUE, 1)->set_required(true),
+                FieldFactory::complex('phat_taps', 'Taps')
+                    ->set_layout('tabbed-vertical')
+                    ->add_fields([
+                        FieldFactory::number('tap_number', 'Tap')->set_width(20),
+                        // Optional on purpose. A blank beer means a guest keg,
+                        // which has no record of its own and would otherwise be
+                        // dropped from the list entirely.
+                        FieldFactory::association('beer', 'Beer', PostTypes::BEER, 1),
+                        Field::make('text', 'guest_name', 'Guest beer name')->set_width(40),
+                        Field::make('text', 'guest_style', 'Guest beer style')->set_width(40),
+                        Field::make('text', 'price', 'Price')->set_width(20),
+                        Field::make('checkbox', 'keg_blown', 'Keg blown'),
+                    ]),
+            ]);
     }
 
     private static function venue(): void
