@@ -1,0 +1,8 @@
+/bin/
+/vendor/
+/public/wp/
+/public/wp-content/uploads/
+/.phpunit.cache/
+/.phpstan.cache/
+.DS_Store
+.local.env

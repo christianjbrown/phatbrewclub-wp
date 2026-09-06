@@ -1,0 +1,13 @@
+includes:
+    - vendor/christianjbrown/code-quality-scripts/config/phpstan.neon
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    tmpDir: .phpstan.cache
+    paths:
+        - src
+    # wp-config.php and the mu-plugin loader run before any autoloader and are
+    # procedural by necessity, so they are checked by `php -l` in CI rather than
+    # here, where every WordPress global would need a stub.
+    scanDirectories:
+        - public/wp

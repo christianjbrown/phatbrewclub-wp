@@ -1,0 +1,81 @@
+{
+    "name": "christianjbrown/phatbrewclub-wp",
+    "description": "A PHP 8.5+ self-hosted WordPress acting as the headless CMS for phatbrewclub.com, publishing the same content contract the Payload version does.",
+    "type": "project",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "keywords": [
+        "wordpress",
+        "headless",
+        "cloud-run",
+        "carbon-fields"
+    ],
+    "authors": [
+        {
+            "name": "Christian Brown"
+        }
+    ],
+    "require": {
+        "php": "^8.5",
+        "htmlburger/carbon-fields": "^3.6",
+        "johnpbloch/wordpress-core": "^6.9",
+        "johnpbloch/wordpress-core-installer": "^2.0",
+        "wp-cli/wp-cli-bundle": "^2.11"
+    },
+    "require-dev": {
+        "christianjbrown/code-quality-scripts": "dev-main",
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0",
+        "szepeviktor/phpstan-wordpress": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ChristianBrown\\PhatWp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ChristianBrown\\PhatWp\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": [
+            "clear && php -d memory_limit=-1 ./bin/phpunit"
+        ],
+        "stan": [
+            "clear && ./bin/phpstan analyse"
+        ],
+        "check-style": [
+            "clear && ./bin/php-cs ./src ./tests"
+        ],
+        "check-style-diff": [
+            "clear && ./bin/php-cs-diff"
+        ],
+        "fix-style": [
+            "clear && ./bin/php-cs-fix ./src ./tests"
+        ],
+        "fix-style-diff": [
+            "clear && ./bin/php-cs-fix-diff"
+        ]
+    },
+    "extra": {
+        "wordpress-install-dir": "public/wp"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "johnpbloch/wordpress-core-installer": true
+        },
+        "bin-dir": "bin",
+        "platform": {
+            "php": "8.5.0"
+        }
+    },
+    "repositories": [
+        {
+            "type": "github",
+            "url": "git@github.com:christianjbrown/code-quality-scripts-php.git"
+        }
+    ]
+}

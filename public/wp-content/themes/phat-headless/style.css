@@ -1,0 +1,5 @@
+/*
+Theme Name: Phat Headless
+Description: There is no front end here. The public site is a separate Next.js service that reads this install's REST API; this theme exists because WordPress will not boot without one.
+Version: 1.0.0
+*/
