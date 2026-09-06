@@ -103,6 +103,19 @@ final class Rest
     }
 
     /**
+     * Everything of a type that belongs to one venue.
+     *
+     * Filtered in PHP rather than with a meta_query, which is not a shortcut.
+     * Carbon Fields does not store an association under the plain key it is
+     * declared with: it uses its own hierarchical scheme, so a meta_query on
+     * `_phat_venue` matches nothing however the value is written. That looked
+     * exactly like missing data — the tap lists and menus were empty on a site
+     * whose content was perfectly fine — and cost a fix to the value format
+     * that was never the problem.
+     *
+     * There are three menus and two tap lists, so reading them all and asking
+     * Carbon is cheaper than being clever.
+     *
      * @return list<WP_Post>
      */
     private static function allByVenue(string $postType, WP_REST_Request $request): array
@@ -113,21 +126,21 @@ final class Rest
             return [];
         }
 
-        // Carbon stores an association as a serialised row, so the id is matched
-        // inside the stored string rather than compared to it.
-        return self::posts(new WP_Query([
+        $all = self::posts(new WP_Query([
             'post_type' => $postType,
             'post_status' => 'publish',
             'posts_per_page' => self::MAX,
-            'meta_query' => [[
-                'key' => '_phat_venue',
-                // The post type has to be the real one. An earlier version used the
-                // literal "any" here, which matched nothing, so tap lists and
-                // menus came back empty on a site whose data was perfectly fine.
-                'value' => sprintf('post:%s:%d', PostTypes::VENUE, $venue),
-                'compare' => 'LIKE',
-            ]],
         ]));
+
+        $out = [];
+
+        foreach ($all as $post) {
+            if (in_array($venue, Shape::related(carbon_get_post_meta($post->ID, 'phat_venue')), true)) {
+                $out[] = $post;
+            }
+        }
+
+        return $out;
     }
 
     private static function bySlug(string $postType, string $slug): ?WP_Post

@@ -182,9 +182,11 @@ final class Import
      */
     private function fetch(string $collection): array
     {
-        // depth=2 so relationships and uploads arrive expanded; limit covers
-        // every collection with room to spare.
-        $url = sprintf('%s/%s?depth=2&limit=200', $this->api, $collection);
+        // depth=3, not 2. A menu's photographs sit three levels down —
+        // sections, then items, then the upload — and at depth 2 they arrive as
+        // bare ids, so every menu photo was silently dropped and the menu page
+        // came back with one image where the Payload one has forty-nine.
+        $url = sprintf('%s/%s?depth=3&limit=200', $this->api, $collection);
         $response = wp_remote_get($url, ['timeout' => 60]);
 
         if ($response instanceof WP_Error) {
