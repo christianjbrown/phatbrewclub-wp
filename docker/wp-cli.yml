@@ -1,1 +1,7 @@
-path: public/wp
+# Absolute, not relative.
+#
+# WP-CLI resolves a relative path here against the directory holding this file,
+# which is /var/www, not the application root — so `path: public/wp` sent it
+# looking in /var/www/public/wp and it reported, accurately but confusingly,
+# that this does not seem to be a WordPress installation.
+path: /var/www/html/public/wp
