@@ -138,8 +138,8 @@ final class MeanduSync
         }
 
         /**
- * @var array<string, mixed> $shaped
-*/
+         * @var array<string, mixed> $shaped
+         */
         $shaped = $cat;
 
         return $shaped;
@@ -251,9 +251,50 @@ final class MeanduSync
         include_once ABSPATH.'wp-admin/includes/file.php';
         include_once ABSPATH.'wp-admin/includes/image.php';
 
-        $attachment = media_sideload_image($url, 0, $alt, 'id');
+        /*
+         * Fetched by hand rather than through media_sideload_image.
+         *
+         * That function decides whether something is an image by looking for a
+         * file extension in the URL, and me&u's CDN serves from paths like
+         * /prod/5a4fd5dd-… with no extension at all — so it rejected every
+         * photo with "Invalid image URL" while the menus themselves imported
+         * fine. The content type is the thing that actually knows, which is
+         * what the original TypeScript checks too.
+         */
+        $response = wp_remote_get($url, ['timeout' => 30, 'headers' => ['User-Agent' => self::UA]]);
+
+        if ($response instanceof WP_Error) {
+            WP_CLI::log(sprintf('  image menu-%s: %s', $id, $response->get_error_message()));
+
+            return '';
+        }
+
+        $type = Val::text(wp_remote_retrieve_header($response, 'content-type'));
+
+        if (!str_starts_with($type, 'image/')) {
+            WP_CLI::log(sprintf('  image menu-%s: not an image (%s)', $id, '' === $type ? 'no content-type' : $type));
+
+            return '';
+        }
+
+        // The extension only has to be something WordPress recognises; the
+        // image editor works out the real format when it makes the sub-sizes.
+        $name = 'menu-'.$id.(str_contains($type, 'png') ? '.png' : '.jpg');
+        $tmp = wp_tempnam($name);
+
+        if (false === file_put_contents($tmp, wp_remote_retrieve_body($response))) {
+            wp_delete_file($tmp);
+
+            return '';
+        }
+
+        $attachment = media_handle_sideload(['name' => $name, 'tmp_name' => $tmp], 0, $alt);
 
         if ($attachment instanceof WP_Error) {
+            if (file_exists($tmp)) {
+                wp_delete_file($tmp);
+            }
+
             WP_CLI::log(sprintf('  image menu-%s: %s', $id, $attachment->get_error_message()));
 
             return '';
@@ -342,8 +383,8 @@ final class MeanduSync
         }
 
         /**
- * @var array<string, mixed> $data
-*/
+         * @var array<string, mixed> $data
+         */
         $data = $json['data'];
 
         return $data;
