@@ -62,7 +62,7 @@ jobs:
 
       - name: Point the other jobs at the same build
         run: |
-          for JOB in wp-install wp-import; do
+          for JOB in wp-install wp-import wp-meandu-sync; do
             gcloud run jobs update "$JOB" \
               --image "$REGISTRY/wp:$GITHUB_SHA" --region "$REGION" --project "$PROJECT" --quiet
           done
