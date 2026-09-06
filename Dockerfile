@@ -50,9 +50,13 @@ COPY public/wp-content /var/www/html/public/wp-content
 COPY src /var/www/html/src
 COPY docker/wp-cli.yml /var/www/wp-cli.yml
 
-# Fails the build if a mirror or a dependency has altered a core file. Cheap,
-# and the alternative is finding out from the site.
-RUN php bin/wp core verify-checksums --path=public/wp --allow-root
+# Fails the build if a mirror or a dependency has altered a core file.
+#
+# Invoked directly, not as `php bin/wp`. Composer's bin entry is a shell proxy,
+# so PHP treats it as a template, echoes it verbatim and exits 0 — which is
+# exactly what happened on the first build: the gate reported success without
+# ever checking a file.
+RUN ./bin/wp core verify-checksums --path=public/wp --allow-root
 
 # The uploads directory is a Cloud Storage bucket mounted at runtime. It exists
 # here only so the path resolves when nothing is mounted, which is what happens
