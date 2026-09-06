@@ -56,7 +56,17 @@ COPY docker/wp-cli.yml /var/www/wp-cli.yml
 # so PHP treats it as a template, echoes it verbatim and exits 0 — which is
 # exactly what happened on the first build: the gate reported success without
 # ever checking a file.
-RUN ./bin/wp core verify-checksums --path=public/wp --allow-root
+#
+# The placeholder environment is supplied inline rather than as ENV or ARG, the
+# same way the Payload image does it, so nothing secret-shaped lands in the
+# image history. WP-CLI loads wp-config.php before running any command, and
+# wp-config refuses to boot without a database password — correctly, since a
+# silently defaulted one is how a second WordPress installs itself over the
+# first. There is no database at build time and there should not be.
+RUN WP_DB_PASSWORD=build-only-not-a-real-secret \
+    WP_SALTS='{}' \
+    WP_HOME=http://build.invalid \
+    ./bin/wp core verify-checksums --path=public/wp --allow-root
 
 # The uploads directory is a Cloud Storage bucket mounted at runtime. It exists
 # here only so the path resolves when nothing is mounted, which is what happens
