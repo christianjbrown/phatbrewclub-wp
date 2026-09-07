@@ -495,7 +495,15 @@ final class Import
             'post_status' => 'any',
             'posts_per_page' => -1,
             'fields' => 'ids',
-            'meta_query' => [['key' => self::SOURCE_ID, 'compare' => 'EXISTS']],
+            // Anything this tooling created, whichever half of it created the
+            // record: the sync's menus and tap lists carry its own keys and no
+            // _phat_source_id, so keying only on that left them behind.
+            'meta_query' => [
+                'relation' => 'OR',
+                [['key' => self::SOURCE_ID, 'compare' => 'EXISTS']],
+                [['key' => '_phat_meandu_id_source', 'compare' => 'EXISTS']],
+                [['key' => '_phat_venue_source', 'compare' => 'EXISTS']],
+            ],
         ]))->posts ?? [];
 
         foreach ($found as $id) {
@@ -617,7 +625,7 @@ final class Import
             'merch' => $this->merch($postId, $doc, $set),
             'function-packages' => $this->functionPackage($postId, $doc, $set),
             'menus' => self::menuMeta($postId, $doc, $set),
-            'tap-lists' => self::tapListMeta($postId, $doc),
+            'tap-lists' => $this->tapListMeta($postId, $doc),
             'posts' => $this->thumbnail($postId, $doc['heroImage'] ?? null),
             'pages' => $set('phat_layout', $this->layout($doc['layout'] ?? null)),
             default => null,
@@ -757,10 +765,18 @@ final class Import
     /**
      * @param array<string, mixed> $doc
      */
-    private static function tapListMeta(int $postId, array $doc): void
+    private function tapListMeta(int $postId, array $doc): void
     {
         carbon_set_post_meta($postId, 'phat_source', Val::text($doc['source'] ?? null, 'manual'));
         carbon_set_post_meta($postId, 'phat_synced_at', Val::text($doc['syncedAt'] ?? null));
+
+        // As with menus: the key the sync uses to find this list again.
+        $venue = $this->refs('venues', [$doc['venue'] ?? null]);
+        $venueId = [] === $venue ? null : $venue[0]['id'];
+
+        if (is_int($venueId)) {
+            update_post_meta($postId, '_phat_venue_source', (string) $venueId);
+        }
     }
 
     private function thumbnail(int $postId, mixed $value): void
