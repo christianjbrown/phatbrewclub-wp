@@ -490,33 +490,45 @@ final class Import
      */
     private static function purge(): void
     {
-        $found = (new WP_Query([
-            'post_type' => self::TYPES,
-            'post_status' => 'any',
-            'posts_per_page' => -1,
-            'fields' => 'ids',
-            // Anything this tooling created, whichever half of it created the
-            // record: the sync's menus and tap lists carry its own keys and no
-            // _phat_source_id, so keying only on that left them behind.
-            // Flat clauses under the relation. Wrapping each in another array
-            // makes WP_Query treat them as nested groups, which it then fails
-            // to build SQL for — the purge matched nothing and the duplicates
-            // survived a run that reported success.
-            'meta_query' => [
-                'relation' => 'OR',
-                ['key' => self::SOURCE_ID, 'compare' => 'EXISTS'],
-                ['key' => '_phat_meandu_id_source', 'compare' => 'EXISTS'],
-                ['key' => '_phat_venue_source', 'compare' => 'EXISTS'],
-            ],
-        ]))->posts ?? [];
+        WP_CLI::log('  purging previously imported content');
 
-        foreach ($found as $id) {
-            if (is_int($id)) {
-                wp_delete_post($id, true);
+        /**
+         * Three separate queries, merged here, rather than one with an OR.
+         *
+         * An OR of three EXISTS clauses makes WP_Query join postmeta three
+         * times and index nothing, and on a db-f1-micro with Carbon Fields'
+         * many meta rows per document that never came back — the job hit its
+         * timeout twice having logged nothing at all, because it died before
+         * the first line of output. One key at a time uses the meta_key index
+         * and returns instantly.
+         */
+        $ids = [];
+
+        foreach ([self::SOURCE_ID, '_phat_meandu_id_source', '_phat_venue_source'] as $key) {
+            $found = (new WP_Query([
+                'post_type' => self::TYPES,
+                'post_status' => 'any',
+                'posts_per_page' => -1,
+                'fields' => 'ids',
+                'no_found_rows' => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+                'meta_key' => $key,
+                'meta_compare' => 'EXISTS',
+            ]))->posts ?? [];
+
+            foreach ($found as $id) {
+                if (is_int($id)) {
+                    $ids[$id] = true;
+                }
             }
         }
 
-        WP_CLI::log(sprintf('  purged %d previously imported items', count($found)));
+        foreach (array_keys($ids) as $id) {
+            wp_delete_post($id, true);
+        }
+
+        WP_CLI::log(sprintf('  purged %d previously imported items', count($ids)));
     }
 
     /**
