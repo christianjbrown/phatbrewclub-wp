@@ -498,11 +498,15 @@ final class Import
             // Anything this tooling created, whichever half of it created the
             // record: the sync's menus and tap lists carry its own keys and no
             // _phat_source_id, so keying only on that left them behind.
+            // Flat clauses under the relation. Wrapping each in another array
+            // makes WP_Query treat them as nested groups, which it then fails
+            // to build SQL for — the purge matched nothing and the duplicates
+            // survived a run that reported success.
             'meta_query' => [
                 'relation' => 'OR',
-                [['key' => self::SOURCE_ID, 'compare' => 'EXISTS']],
-                [['key' => '_phat_meandu_id_source', 'compare' => 'EXISTS']],
-                [['key' => '_phat_venue_source', 'compare' => 'EXISTS']],
+                ['key' => self::SOURCE_ID, 'compare' => 'EXISTS'],
+                ['key' => '_phat_meandu_id_source', 'compare' => 'EXISTS'],
+                ['key' => '_phat_venue_source', 'compare' => 'EXISTS'],
             ],
         ]))->posts ?? [];
 
