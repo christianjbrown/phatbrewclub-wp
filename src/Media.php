@@ -29,6 +29,11 @@ final class Media
     /**
      * Matches the Payload side: 80 for the working sizes, 78 for the largest.
      */
+    /**
+     * Paired with crop false this is a ceiling, not a target: "scale to the
+     * given width, whatever height that produces".
+     */
+    private const HEIGHT_CEILING = 9999;
     private const QUALITY = 80;
     private const QUALITY_HERO = 78;
 
@@ -62,9 +67,7 @@ final class Media
             add_theme_support('post-thumbnails');
 
             foreach (self::SIZES as $name => $width) {
-                // The 9999 is a height ceiling, not a target: paired with false
-                // it means "scale to this width, whatever height that gives".
-                add_image_size($name, $width, 9999, false);
+                add_image_size($name, $width, self::HEIGHT_CEILING, false);
             }
         });
 
@@ -97,6 +100,59 @@ final class Media
             $sizes,
             self::SIZES,
         ));
+
+        /*
+         * Make core's idea of `thumbnail` agree with the ladder's.
+         *
+         * `thumbnail` is one of WordPress's own sizes, and core takes its
+         * dimensions from options rather than from add_image_size. Generation
+         * used the registered 400 and produced the right file, but every read
+         * went through image_constrain_size_for_editor, which clamps a core
+         * size to its option box — so the site advertised the 400px file as
+         * 150w, or 84w for a portrait, and browsers dutifully skipped it for a
+         * larger rung. Nothing looked wrong; the pages were simply heavier than
+         * the ones next door.
+         *
+         * Filtering the options rather than writing them keeps the ladder in
+         * one place: the numbers cannot drift apart, because there is only one
+         * set of them.
+         */
+        add_filter('pre_option_thumbnail_size_w', static fn (): int => self::SIZES['thumbnail']);
+        add_filter('pre_option_thumbnail_size_h', static fn (): int => self::HEIGHT_CEILING);
+        add_filter('pre_option_thumbnail_crop', static fn (): int => 0);
+
+        /*
+         * Generate a rung whose width exactly equals the original's.
+         *
+         * WordPress skips a derivative when it would come out the same size as
+         * the source, which is right when the derivative would be a copy — but
+         * here it is not a copy, it is the WebP conversion, and skipping it left
+         * a 1600x900 hero with no hero rung at all. The page then fell back to
+         * the 800 one, so the Payload site served a 1600px social card and this
+         * one served half that, from the same image.
+         *
+         * Only exact equality is overridden. A source narrower than a rung
+         * still produces no rung, because that would be an upscale and the
+         * Payload side does not do it either — a 1080px original has four
+         * derivatives on both sites.
+         *
+         * @param array<int, int>|null $output
+         *
+         * @return array<int, int>|null
+         */
+        add_filter(
+            'image_resize_dimensions',
+            static function (?array $output, int $origW, int $origH, int $destW, int $destH, bool $crop): ?array {
+                if (null !== $output || $crop || $destW !== $origW) {
+                    return $output;
+                }
+
+                // dst_x, dst_y, src_x, src_y, dst_w, dst_h, src_w, src_h.
+                return [0, 0, 0, 0, $origW, $origH, $origW, $origH];
+            },
+            10,
+            6,
+        );
 
         add_filter(
             'image_editor_output_format',
